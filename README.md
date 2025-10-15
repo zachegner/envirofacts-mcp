@@ -42,7 +42,7 @@ Install using [uv](https://github.com/astral-sh/uv) (fastest method):
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Clone and install
-git clone <repository-url>
+git clone [<repository-url>](https://github.com/zachegner/envirofacts-mcp)
 cd envirofacts-mcp
 uv sync
 ```
@@ -57,7 +57,7 @@ uv sync
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone [<repository-url>](https://github.com/zachegner/envirofacts-mcp)
 cd envirofacts-mcp
 
 # Create virtual environment
