@@ -27,6 +27,7 @@ A Model Context Protocol (MCP) server that provides AI agents with structured ac
   - Hazardous waste sites
   - Distance-based ranking and filtering
 - **Search Facilities**: Search for EPA-regulated facilities by name, NAICS code, state, ZIP code, or city
+- **Chemical Release Data**: Query TRI chemical releases by chemical name, CAS number, state, county, or year with comprehensive aggregations and optional year-over-year trends
 - **Geocoding Support**: Convert addresses, cities, and ZIP codes to coordinates
 - **Robust Error Handling**: Retry logic, timeout handling, and graceful degradation
 - **Modular Architecture**: Easy to extend with additional EPA data tools
@@ -263,7 +264,55 @@ for facility in facilities[:3]:
     print(f"{facility.name} - {facility.city}, {facility.state}")
 ```
 
-#### 3. Facility Compliance History
+#### 3. Chemical Release Data
+
+Query TRI chemical releases with flexible search parameters and comprehensive aggregations.
+
+**Parameters:**
+- `chemical_name` (string, optional): Chemical name (partial match, e.g., 'benzene')
+- `cas_number` (string, optional): CAS Registry Number (exact match, e.g., '71-43-2')
+- `state` (string, optional): Two-letter state code (e.g., 'NY', 'CA')
+- `county` (string, optional): County name (filtered client-side)
+- `year` (int, optional): Reporting year (None for most recent available)
+- `limit` (int, optional): Maximum results to return (default: 100, max: 1000)
+- `include_trends` (bool, optional): Whether to calculate year-over-year trends (default: False)
+- `trend_years` (list, optional): Specific years for trend analysis
+
+**Returns:**
+- Search parameters used
+- Summary statistics (total facilities, chemicals, releases)
+- Releases by medium (air, water, land, underground injection)
+- Facilities grouped by facility with all their chemical releases
+- Chemicals grouped by chemical with all facilities releasing them
+- Top facilities and chemicals by total releases
+- Optional year-over-year trends with percentage changes
+
+**Example Usage:**
+```python
+# Search by chemical name
+data = await get_chemical_release_data(chemical_name="benzene", state="CA")
+
+print(f"Found {data.total_facilities} facilities releasing benzene")
+print(f"Total releases: {data.total_releases} pounds")
+print(f"Air releases: {data.air_releases} pounds")
+
+# Search by CAS number
+data = await get_chemical_release_data(cas_number="71-43-2", year=2022)
+
+# Search with trends
+data = await get_chemical_release_data(
+    chemical_name="lead", 
+    include_trends=True,
+    trend_years=[2020, 2021, 2022]
+)
+
+if data.trends:
+    trend = data.trends[0]
+    print(f"Trend direction: {trend.trend_direction}")
+    print(f"Percentage change: {trend.percentage_change}%")
+```
+
+#### 4. Facility Compliance History
 
 Get compliance and enforcement history for EPA-regulated facilities.
 
@@ -296,7 +345,7 @@ for record in compliance.compliance_records:
     print(f"{record.program}: {record.status}")
 ```
 
-#### 4. Health Check
+#### 5. Health Check
 
 Check system health and EPA API connectivity.
 
@@ -358,6 +407,44 @@ await search_facilities(naics_code="324110")  # Petroleum refining
 await search_facilities(facility_name="Chemical", state="CA")
 await search_facilities(city="Houston", state="TX")
 await search_facilities(facility_name="Power", naics_code="221112")
+```
+
+#### Chemical Release Queries
+```python
+# Search by chemical name
+await get_chemical_release_data(chemical_name="benzene")
+await get_chemical_release_data(chemical_name="lead")
+await get_chemical_release_data(chemical_name="mercury")
+
+# Search by CAS number
+await get_chemical_release_data(cas_number="71-43-2")  # Benzene
+await get_chemical_release_data(cas_number="7439-92-1")  # Lead
+await get_chemical_release_data(cas_number="7439-97-6")  # Mercury
+
+# Search by state
+await get_chemical_release_data(state="CA")
+await get_chemical_release_data(state="TX")
+await get_chemical_release_data(state="NY")
+
+# Search by chemical and state
+await get_chemical_release_data(chemical_name="benzene", state="CA")
+await get_chemical_release_data(chemical_name="lead", state="TX")
+await get_chemical_release_data(cas_number="71-43-2", state="NY")
+
+# Search by year
+await get_chemical_release_data(chemical_name="benzene", year=2022)
+await get_chemical_release_data(state="CA", year=2021)
+
+# Search with trends
+await get_chemical_release_data(
+    chemical_name="benzene",
+    include_trends=True,
+    trend_years=[2020, 2021, 2022]
+)
+await get_chemical_release_data(
+    state="CA",
+    include_trends=True
+)
 ```
 
 ## Testing

@@ -52,3 +52,70 @@ class ReleaseSummary(BaseModel):
     
     # Reporting year
     reporting_year: int = Field(..., ge=1987, le=2030, description="Year of data")
+
+
+class FacilityReleaseInfo(BaseModel):
+    """Facility with all its chemical releases."""
+    
+    facility_id: str = Field(..., description="Facility Registry ID")
+    facility_name: str = Field(..., description="Facility name")
+    chemical_releases: List[ChemicalRelease] = Field(default_factory=list, description="Chemical releases from this facility")
+    
+    @property
+    def total_releases(self) -> float:
+        """Calculate total releases across all chemicals."""
+        return sum(release.total_release for release in self.chemical_releases)
+    
+    @property
+    def unique_chemicals(self) -> int:
+        """Count of unique chemicals released."""
+        return len(set(release.chemical_name for release in self.chemical_releases))
+
+
+class ChemicalAggregation(BaseModel):
+    """Chemical with all facilities releasing it."""
+    
+    chemical_name: str = Field(..., description="Chemical name")
+    cas_number: Optional[str] = Field(None, description="CAS Registry Number")
+    facilities_releasing: List[ChemicalRelease] = Field(default_factory=list, description="Facilities releasing this chemical")
+    
+    @property
+    def total_releases(self) -> float:
+        """Calculate total releases across all facilities."""
+        return sum(release.total_release for release in self.facilities_releasing)
+    
+    @property
+    def facility_count(self) -> int:
+        """Count of facilities releasing this chemical."""
+        return len(self.facilities_releasing)
+
+
+class ChemicalReleaseData(BaseModel):
+    """Comprehensive chemical release data response."""
+    
+    # Search parameters
+    search_params: Dict[str, Any] = Field(..., description="Search parameters used")
+    
+    # Summary statistics
+    total_facilities: int = Field(..., ge=0, description="Total facilities with releases")
+    total_chemicals: int = Field(..., ge=0, description="Total unique chemicals released")
+    total_releases: float = Field(..., ge=0, description="Total releases across all media (pounds)")
+    
+    # Releases by medium
+    air_releases: float = Field(default=0.0, ge=0, description="Total air releases (pounds)")
+    water_releases: float = Field(default=0.0, ge=0, description="Total water releases (pounds)")
+    land_releases: float = Field(default=0.0, ge=0, description="Total land releases (pounds)")
+    underground_injections: float = Field(default=0.0, ge=0, description="Total underground injections (pounds)")
+    
+    # Aggregated data
+    facilities: List[FacilityReleaseInfo] = Field(default_factory=list, description="Facilities grouped by facility")
+    chemicals: List[ChemicalAggregation] = Field(default_factory=list, description="Chemicals grouped by chemical")
+    
+    # Top facilities and chemicals
+    top_facilities: List[FacilityReleaseInfo] = Field(default_factory=list, description="Top facilities by total releases")
+    top_chemicals: List[ChemicalAggregation] = Field(default_factory=list, description="Top chemicals by total releases")
+    
+    # Metadata
+    reporting_year: Optional[int] = Field(None, description="Year of data (if single year)")
+    query_timestamp: str = Field(..., description="Timestamp of query")
+    data_sources: List[str] = Field(default=["TRI"], description="Data sources used")

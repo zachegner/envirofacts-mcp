@@ -12,6 +12,7 @@ from config import settings
 from src.tools.location_summary import register_tool
 from src.tools.search_facilities import register_tool as register_search_tool
 from src.tools.compliance_history import register_tool as register_compliance_tool
+from src.tools.chemical_releases import register_tool as register_chemical_tool
 
 
 # Configure structured logging
@@ -94,8 +95,9 @@ def main():
     register_tool(mcp)
     register_search_tool(mcp)
     register_compliance_tool(mcp)
+    register_chemical_tool(mcp)
     
-    logger.info("Registered tools", tools=["environmental_summary_by_location", "search_facilities", "get_facility_compliance_history", "health_check"])
+    logger.info("Registered tools", tools=["environmental_summary_by_location", "search_facilities", "get_facility_compliance_history", "get_chemical_release_data", "health_check"])
     
     # Run the server with proper MCP protocol support
     try:

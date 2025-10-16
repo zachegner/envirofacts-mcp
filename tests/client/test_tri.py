@@ -119,6 +119,67 @@ class TestTRIClient:
         assert result.name == "Test Chemical Plant"
         assert FacilityType.TRI in result.programs
     
+    @pytest.mark.asyncio
+    async def test_get_chemical_releases_success(self, client, tri_api_response):
+        """Test successful chemical releases query."""
+        client.query_table = AsyncMock(return_value=tri_api_response)
+        
+        result = await client.get_chemical_releases(
+            chemical_name="benzene",
+            state="CA",
+            year=2022,
+            limit=10
+        )
+        
+        assert len(result) == 1
+        assert isinstance(result[0], ChemicalRelease)
+        assert result[0].facility_id == "110000123456"
+        assert result[0].chemical_name == "Benzene"
+        assert result[0].cas_number == "71-43-2"
+        assert result[0].reporting_year == 2023
+        assert result[0].air_release == 1500.5
+        assert result[0].water_release == 250.0
+        assert result[0].land_release == 100.0
+        assert result[0].underground_injection == 0.0
+        
+        # Verify query parameters
+        call_args = client.query_table.call_args
+        assert call_args[1]["table"] == "tri.tri_reporting_form"
+        assert call_args[1]["filters"]["chemical_name"]["contains"] == "benzene"
+        assert call_args[1]["filters"]["state_abbr"]["equals"] == "CA"
+        assert call_args[1]["filters"]["reporting_year"]["equals"] == 2022
+        assert call_args[1]["joins"] == ["tri.tri_facility", "tri.tri_chem_info"]
+        assert call_args[1]["limit"] == 10
+    
+    @pytest.mark.asyncio
+    async def test_get_chemical_releases_by_cas_number(self, client, tri_api_response):
+        """Test chemical releases query by CAS number."""
+        client.query_table = AsyncMock(return_value=tri_api_response)
+        
+        result = await client.get_chemical_releases(cas_number="71-43-2", limit=5)
+        
+        assert len(result) == 1
+        assert isinstance(result[0], ChemicalRelease)
+        assert result[0].cas_number == "71-43-2"
+        
+        # Verify query parameters
+        call_args = client.query_table.call_args
+        assert call_args[1]["filters"]["cas_number"]["equals"] == "71-43-2"
+    
+    @pytest.mark.asyncio
+    async def test_get_chemical_releases_no_params_raises_error(self, client):
+        """Test that no search parameters raises ValueError."""
+        with pytest.raises(ValueError, match="At least one search parameter must be provided"):
+            await client.get_chemical_releases()
+    
+    @pytest.mark.asyncio
+    async def test_get_chemical_releases_api_error(self, client):
+        """Test handling of API errors."""
+        client.query_table = AsyncMock(side_effect=Exception("API Error"))
+        
+        with pytest.raises(EPAAPIError, match="TRI chemical releases query failed"):
+            await client.get_chemical_releases(chemical_name="benzene")
+    
     def test_parse_tri_release_record_success(self, client, sample_tri_release):
         """Test successful TRI release record parsing."""
         result = client._parse_tri_release_record(sample_tri_release)
