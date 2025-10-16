@@ -128,6 +128,91 @@ class FRSClient(EPAClient):
             logger.error(f"Failed to get FRS facility {registry_id}: {e}")
             raise EPAAPIError(f"FRS facility query failed: {e}")
     
+    async def search_facilities(
+        self,
+        facility_name: Optional[str] = None,
+        naics_code: Optional[str] = None,
+        state: Optional[str] = None,
+        zip_code: Optional[str] = None,
+        city: Optional[str] = None,
+        limit: int = 100
+    ) -> List[FacilityInfo]:
+        """Search for FRS facilities using various filters.
+        
+        Args:
+            facility_name: Partial or full facility name (uses contains matching)
+            naics_code: NAICS industry code
+            state: Two-letter state code
+            zip_code: 5-digit ZIP code
+            city: City name
+            limit: Maximum results to return (default: 100)
+            
+        Returns:
+            List of FacilityInfo objects
+            
+        Raises:
+            EPAAPIError: If query fails
+            ValueError: If no search parameters provided
+        """
+        # Validate that at least one search parameter is provided
+        if not any([facility_name, naics_code, state, zip_code, city]):
+            raise ValueError("At least one search parameter must be provided")
+        
+        try:
+            # Build filters dictionary
+            filters = {}
+            
+            if facility_name:
+                filters['primary_name'] = {'contains': facility_name.strip()}
+            
+            if naics_code:
+                filters['naics_code'] = {'equals': naics_code.strip()}
+            
+            if state:
+                # Normalize state code to uppercase
+                state_code = state.strip().upper()
+                if len(state_code) != 2:
+                    raise ValueError(f"State code must be 2 letters, got: {state_code}")
+                filters['state_code'] = {'equals': state_code}
+            
+            if zip_code:
+                # Convert to string and strip whitespace
+                zip_code_str = str(zip_code).strip()
+                # Remove any non-digit characters
+                zip_code_clean = ''.join(c for c in zip_code_str if c.isdigit())
+                # Validate length
+                if len(zip_code_clean) > 5:
+                    raise ValueError(f"ZIP code must be 5 digits or less, got: {zip_code_clean}")
+                # Zero-pad to 5 digits
+                zip_code = zip_code_clean.zfill(5)
+                filters['postal_code'] = {'equals': zip_code}
+            
+            if city:
+                filters['city_name'] = {'contains': city.strip()}
+            
+            # Query the FRS facility_site table
+            data = await self.query_table('frs.frs_facility_site', filters=filters, limit=limit)
+            
+            facilities = []
+            for record in data:
+                try:
+                    facility = self._parse_frs_record(record)
+                    if facility:
+                        facilities.append(facility)
+                except Exception as e:
+                    logger.warning(f"Failed to parse FRS record: {e}")
+                    continue
+            
+            logger.info(f"Retrieved {len(facilities)} facilities matching search criteria")
+            return facilities
+            
+        except ValueError:
+            # Re-raise validation errors
+            raise
+        except Exception as e:
+            logger.error(f"Failed to search FRS facilities: {e}")
+            raise EPAAPIError(f"FRS search failed: {e}")
+    
     def _parse_frs_record(self, record: Dict[str, Any]) -> Optional[FacilityInfo]:
         """Parse FRS API record to FacilityInfo model.
         

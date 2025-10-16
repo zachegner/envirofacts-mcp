@@ -26,6 +26,7 @@ A Model Context Protocol (MCP) server that provides AI agents with structured ac
   - Safe Drinking Water Act violations
   - Hazardous waste sites
   - Distance-based ranking and filtering
+- **Search Facilities**: Search for EPA-regulated facilities by name, NAICS code, state, ZIP code, or city
 - **Geocoding Support**: Convert addresses, cities, and ZIP codes to coordinates
 - **Robust Error Handling**: Retry logic, timeout handling, and graceful degradation
 - **Modular Architecture**: Easy to extend with additional EPA data tools
@@ -219,7 +220,83 @@ print(f"Active water violations: {summary.total_violations}")
 print(f"Chemical releases: {summary.chemical_releases.total_releases} pounds")
 ```
 
-#### 2. Health Check
+#### 2. Search Facilities
+
+Search for EPA-regulated facilities using various filters.
+
+**Parameters:**
+- `facility_name` (string, optional): Partial or full facility name (uses contains matching)
+- `naics_code` (string, optional): NAICS industry code
+- `state` (string, optional): Two-letter state code (e.g., 'NY', 'CA')
+- `zip_code` (string, optional): 5-digit ZIP code
+- `city` (string, optional): City name
+- `limit` (int, optional): Maximum results to return (default: 100, max: 1000)
+
+**Returns:**
+- List of facilities with:
+  - Registry ID and facility name
+  - Address and location information
+  - Active EPA programs (TRI, RCRA, etc.)
+  - Industry codes and descriptions
+  - Facility status
+
+**Example Usage:**
+```python
+# Search by facility name
+facilities = await search_facilities(facility_name="Chemical")
+
+# Search by state and city
+facilities = await search_facilities(state="CA", city="Los Angeles")
+
+# Search by NAICS code
+facilities = await search_facilities(naics_code="325199")
+
+# Search with multiple parameters
+facilities = await search_facilities(
+    facility_name="Manufacturing",
+    state="TX",
+    limit=50
+)
+
+print(f"Found {len(facilities)} facilities")
+for facility in facilities[:3]:
+    print(f"{facility.name} - {facility.city}, {facility.state}")
+```
+
+#### 3. Facility Compliance History
+
+Get compliance and enforcement history for EPA-regulated facilities.
+
+**Parameters:**
+- `registry_id` (string): FRS Registry ID or program-specific ID (RCRA Handler ID, TRI Facility ID)
+- `program` (string, optional): Filter by program ('TRI' or 'RCRA')
+- `years` (int, optional): Historical years to include (default: 5, max: 20)
+
+**Returns:**
+- Facility information
+- Compliance records by program
+- Violations with dates and status
+- Overall compliance status
+- Summary statistics
+
+**Example Usage:**
+```python
+# By FRS registry ID
+compliance = await get_facility_compliance_history("110000012345")
+
+# By program-specific ID with filter
+compliance = await get_facility_compliance_history("VAD000012345", program="RCRA")
+
+# With custom timeframe
+compliance = await get_facility_compliance_history("110000012345", years=10)
+
+print(f"Overall status: {compliance.overall_status}")
+print(f"Total violations: {compliance.total_violations}")
+for record in compliance.compliance_records:
+    print(f"{record.program}: {record.status}")
+```
+
+#### 4. Health Check
 
 Check system health and EPA API connectivity.
 
@@ -230,6 +307,7 @@ Check system health and EPA API connectivity.
 
 ### Example Queries
 
+#### Environmental Summary Queries
 ```python
 # Major cities
 await get_environmental_summary_by_location("New York, NY", 5.0)
@@ -247,6 +325,39 @@ await get_environmental_summary_by_location("1600 Pennsylvania Avenue NW, Washin
 # Different radius sizes
 await get_environmental_summary_by_location("Houston, TX", 1.0)   # Small radius
 await get_environmental_summary_by_location("Houston, TX", 20.0)  # Large radius
+```
+
+#### Facility Search Queries
+```python
+# Search by facility name
+await search_facilities(facility_name="Chemical")
+await search_facilities(facility_name="Manufacturing")
+await search_facilities(facility_name="Power Plant")
+
+# Search by state
+await search_facilities(state="CA")
+await search_facilities(state="NY")
+await search_facilities(state="TX")
+
+# Search by city
+await search_facilities(city="Los Angeles")
+await search_facilities(city="Houston")
+await search_facilities(city="Chicago")
+
+# Search by ZIP code
+await search_facilities(zip_code="10001")  # NYC
+await search_facilities(zip_code="90210")  # Beverly Hills
+await search_facilities(zip_code="60601")  # Chicago
+
+# Search by NAICS code
+await search_facilities(naics_code="325199")  # Chemical manufacturing
+await search_facilities(naics_code="221112")  # Electric power generation
+await search_facilities(naics_code="324110")  # Petroleum refining
+
+# Combined searches
+await search_facilities(facility_name="Chemical", state="CA")
+await search_facilities(city="Houston", state="TX")
+await search_facilities(facility_name="Power", naics_code="221112")
 ```
 
 ## Testing
@@ -311,17 +422,21 @@ envirofacts-mcp/
 │   │   ├── frs.py              # FRS (Facility Registry) queries
 │   │   ├── tri.py              # TRI (Toxics Release) queries
 │   │   ├── sdwis.py            # SDWIS (Safe Drinking Water) queries
-│   │   └── rcra.py             # RCRA (Hazardous Waste) queries
+│   │   ├── rcra.py             # RCRA (Hazardous Waste) queries
+│   │   └── compliance.py        # Compliance history queries
 │   ├── models/                 # Pydantic data models
 │   │   ├── __init__.py
 │   │   ├── common.py           # Common models (LocationParams, Coordinates)
 │   │   ├── facility.py         # Facility-related models
 │   │   ├── releases.py         # Chemical release models
 │   │   ├── water.py            # Water violation models
-│   │   └── summary.py          # EnvironmentalSummary response model
+│   │   ├── summary.py          # EnvironmentalSummary response model
+│   │   └── compliance.py       # Compliance history models
 │   ├── tools/                  # MCP tools
 │   │   ├── __init__.py
-│   │   └── location_summary.py # Tool 1: Environmental summary
+│   │   ├── location_summary.py # Tool 1: Environmental summary
+│   │   ├── search_facilities.py # Tool 2: Search facilities
+│   │   └── compliance_history.py # Tool 3: Compliance history
 │   └── utils/                  # Utility functions
 │       ├── __init__.py
 │       ├── geocoding.py        # Geocoding functions
@@ -338,7 +453,11 @@ envirofacts-mcp/
 │   │   └── test_rcra.py
 │   ├── tools/                 # Tool tests
 │   │   ├── test_location_summary.py
-│   │   └── test_location_summary_integration.py
+│   │   ├── test_location_summary_integration.py
+│   │   ├── test_search_facilities.py
+│   │   ├── test_search_facilities_integration.py
+│   │   ├── test_compliance_history.py
+│   │   └── test_compliance_history_integration.py
 │   └── utils/                 # Utility tests
 │       ├── test_geocoding.py
 │       ├── test_distance.py

@@ -10,6 +10,8 @@ from fastmcp import FastMCP
 
 from config import settings
 from src.tools.location_summary import register_tool
+from src.tools.search_facilities import register_tool as register_search_tool
+from src.tools.compliance_history import register_tool as register_compliance_tool
 
 
 # Configure structured logging
@@ -90,8 +92,10 @@ def main():
     
     # Register tools
     register_tool(mcp)
+    register_search_tool(mcp)
+    register_compliance_tool(mcp)
     
-    logger.info("Registered tools", tools=["environmental_summary_by_location", "health_check"])
+    logger.info("Registered tools", tools=["environmental_summary_by_location", "search_facilities", "get_facility_compliance_history", "health_check"])
     
     # Run the server with proper MCP protocol support
     try:
