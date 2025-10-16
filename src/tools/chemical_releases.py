@@ -208,22 +208,14 @@ async def _get_chemical_release_data_impl(
 
 
 
-# Register the tool with FastMCP
-def register_tool(mcp: FastMCP):
-    """Register the chemical release data tool with FastMCP.
-    
-    Args:
-        mcp: FastMCP instance
-    """
-    @mcp.tool()
-    async def get_chemical_release_data(
-        chemical_name: Optional[str] = None,
-        cas_number: Optional[str] = None,
-        state: Optional[str] = None,
-        county: Optional[str] = None,
-        year: Optional[int] = None,
-        limit: int = 100
-    ) -> ChemicalReleaseData:
+async def get_chemical_release_data(
+    chemical_name: Optional[str] = None,
+    cas_number: Optional[str] = None,
+    state: Optional[str] = None,
+    county: Optional[str] = None,
+    year: Optional[int] = None,
+    limit: int = 100
+) -> ChemicalReleaseData:
         """Query TRI chemical releases with flexible search parameters.
         
         Provides comprehensive chemical release data from the Toxics Release Inventory (TRI),
@@ -249,4 +241,14 @@ def register_tool(mcp: FastMCP):
             year=year,
             limit=limit
         )
+
+
+# Register the tool with FastMCP
+def register_tool(mcp: FastMCP):
+    """Register the chemical release data tool with FastMCP.
+    
+    Args:
+        mcp: FastMCP instance
+    """
+    mcp.tool()(get_chemical_release_data)
 

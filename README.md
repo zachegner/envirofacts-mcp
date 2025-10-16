@@ -49,6 +49,66 @@ cd envirofacts-mcp
 uv sync
 ```
 
+### Docker Installation (No Local Setup Required)
+
+**Prerequisites:**
+- Docker and Docker Compose
+
+**Quick Start:**
+
+```bash
+# Clone the repository
+git clone https://github.com/zachegner/envirofacts-mcp
+cd envirofacts-mcp
+
+# Build and run with Docker
+docker build -t epa-mcp .
+docker run -i --rm epa-mcp
+```
+
+**Using Docker Compose (Recommended):**
+
+```bash
+# Clone the repository
+git clone https://github.com/zachegner/envirofacts-mcp
+cd envirofacts-mcp
+
+# Copy environment configuration
+cp .env.example .env
+# Edit .env with your preferred settings (optional)
+
+# Start the server
+docker-compose up mcp-server
+
+# Or run in background
+docker-compose up -d mcp-server
+```
+
+**Configuration:**
+
+Create a `.env` file from the template:
+```bash
+cp .env.example .env
+# Edit .env with your preferred settings
+```
+
+**Running Tests with Docker:**
+
+```bash
+# Run unit tests
+docker-compose run test
+
+# Run integration tests (requires internet)
+docker-compose run test pytest tests/ -v -m integration
+```
+
+**Development with Docker:**
+
+The docker-compose.yml includes volume mounts for live development:
+- Source code changes are reflected immediately
+- No need to rebuild the image for code changes
+- Use `docker-compose up mcp-server` for development
+
 ### Alternative: Traditional Installation
 
 **Prerequisites:**
@@ -74,6 +134,43 @@ pip install -e .
 
 Add this configuration to your MCP client settings (e.g., `claude_desktop_config.json`):
 
+**With Docker (Recommended for easy setup):**
+
+```json
+{
+  "mcpServers": {
+    "epa-envirofacts": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "epa-mcp"
+      ]
+    }
+  }
+}
+```
+
+**With Docker Compose:**
+
+```json
+{
+  "mcpServers": {
+    "epa-envirofacts": {
+      "command": "docker-compose",
+      "args": [
+        "run",
+        "--rm",
+        "mcp-server"
+      ]
+    }
+  }
+}
+```
+
+**With uv (requires local Python setup):**
+
 ```json
 {
   "mcpServers": {
@@ -91,7 +188,7 @@ Add this configuration to your MCP client settings (e.g., `claude_desktop_config
 }
 ```
 
-Or with traditional installation:
+**With traditional installation:**
 
 ```json
 {
@@ -147,7 +244,18 @@ LOG_LEVEL=INFO
 
 ### Running the Server
 
-#### With uv (Recommended)
+#### With Docker (Recommended for easy setup)
+
+```bash
+# Build and run
+docker build -t epa-mcp .
+docker run -i --rm epa-mcp
+
+# Or with Docker Compose
+docker-compose up mcp-server
+```
+
+#### With uv (requires local Python setup)
 
 ```bash
 uv run python server.py
@@ -454,6 +562,9 @@ await get_chemical_release_data(
 Run unit tests with mocked responses:
 
 ```bash
+# With Docker (recommended)
+docker-compose run test
+
 # With uv
 uv run pytest tests/ -v
 
@@ -466,6 +577,9 @@ pytest tests/ -v
 Run integration tests with live EPA API calls (slower):
 
 ```bash
+# With Docker
+docker-compose run test pytest tests/ -v -m integration
+
 # With uv
 uv run pytest tests/ -v -m integration
 
@@ -478,6 +592,9 @@ pytest tests/ -v -m integration
 Generate test coverage report:
 
 ```bash
+# With Docker
+docker-compose run test pytest tests/ --cov=src --cov-report=html
+
 # With uv
 uv run pytest tests/ --cov=src --cov-report=html
 

@@ -1,0 +1,53 @@
+services:
+  mcp-server:
+    build: .
+    container_name: epa-envirofacts-mcp
+    environment:
+      - EPA_API_BASE_URL=${EPA_API_BASE_URL:-https://data.epa.gov/efservice/}
+      - REQUEST_TIMEOUT=${REQUEST_TIMEOUT:-300}
+      - RETRY_ATTEMPTS=${RETRY_ATTEMPTS:-3}
+      - MAX_RESULTS_PER_QUERY=${MAX_RESULTS_PER_QUERY:-1000}
+      - GEOCODING_SERVICE=${GEOCODING_SERVICE:-nominatim}
+      - GEOCODING_USER_AGENT=${GEOCODING_USER_AGENT:-epa-envirofacts-mcp/1.0}
+      - GEOCODING_API_KEY=${GEOCODING_API_KEY:-}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      # Mount source code for development (comment out for production)
+      - ./src:/app/src:ro
+      - ./server.py:/app/server.py:ro
+      - ./config.py:/app/config.py:ro
+    # For MCP stdio communication (default)
+    stdin_open: true
+    tty: true
+    # Uncomment for network-based MCP communication
+    # ports:
+    #   - "8000:8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import asyncio; from src.client import FRSClient; asyncio.run(FRSClient().health_check())"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Test service for running pytest
+  test:
+    build: .
+    container_name: epa-envirofacts-test
+    environment:
+      - EPA_API_BASE_URL=${EPA_API_BASE_URL:-https://data.epa.gov/efservice/}
+      - REQUEST_TIMEOUT=${REQUEST_TIMEOUT:-300}
+      - RETRY_ATTEMPTS=${RETRY_ATTEMPTS:-3}
+      - MAX_RESULTS_PER_QUERY=${MAX_RESULTS_PER_QUERY:-1000}
+      - GEOCODING_SERVICE=${GEOCODING_SERVICE:-nominatim}
+      - GEOCODING_USER_AGENT=${GEOCODING_USER_AGENT:-epa-envirofacts-mcp/1.0}
+      - GEOCODING_API_KEY=${GEOCODING_API_KEY:-}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - ./src:/app/src:ro
+      - ./tests:/app/tests:ro
+      - ./server.py:/app/server.py:ro
+      - ./config.py:/app/config.py:ro
+    command: ["python", "-m", "pytest", "tests/", "-v"]
+    profiles:
+      - test
